@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Phillipp Glanz <p.glanz@madfix.me>
+Date: Mon, 26 Sep 2022 15:15:57 +0200
+Subject: [PATCH] Fix inline function
+
+
+diff --git a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeWriter.kt b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeWriter.kt
+index 46d025d7dd01477e098ef3d0fed62b18886c970e..c3c3339fa522d75e4905a86917c54be16accfe2a 100644
+--- a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeWriter.kt
++++ b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeWriter.kt
+@@ -396,7 +396,7 @@ internal class CodeWriter constructor(
+   private fun emitLiteral(o: Any?, isConstantContext: Boolean) {
+     when (o) {
+       is TypeSpec -> o.emit(this, null)
+-      is AnnotationSpec -> o.emit(this, inline = true, asParameter = isConstantContext)
++      is AnnotationSpec -> o.emit(this, asParameter = isConstantContext)
+       is PropertySpec -> o.emit(this, emptySet())
+       is FunSpec -> o.emit(
+         codeWriter = this,
