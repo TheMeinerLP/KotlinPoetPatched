@@ -1,0 +1,236 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Phillipp Glanz <p.glanz@madfix.me>
+Date: Mon, 26 Sep 2022 15:54:45 +0200
+Subject: [PATCH] Add option to disable implicit modifiers
+
+
+diff --git a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/TypeSpec.kt b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/TypeSpec.kt
+index ad751c54491023cad8b30bab11d1f83831c0ff00..943ca4d7f1b630f08889b42348eb6818a64dc912 100644
+--- a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/TypeSpec.kt
++++ b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/TypeSpec.kt
+@@ -42,8 +42,14 @@ public class TypeSpec private constructor(
+     .plus(builder.typeSpecs.flatMap(TypeSpec::originatingElements))
+     .buildOriginatingElements(),
+   private val contextReceivers: ContextReceivers = builder.buildContextReceivers(),
+-) : Taggable by tagMap, OriginatingElementsHolder by delegateOriginatingElements, ContextReceivable by contextReceivers {
++) : Taggable by tagMap, OriginatingElementsHolder by delegateOriginatingElements,
++  ContextReceivable by contextReceivers {
+   public val kind: Kind = builder.kind
++
++  public val implicitPropertyModifiers: Boolean = builder.implicitPropertyModifiers
++  public val implicitFunctionModifiers: Boolean = builder.implicitFunctionModifiers
++  public val implicitTypeModifiers: Boolean = builder.implicitTypeModifiers
++
+   public val name: String? = builder.name
+   public val kdoc: CodeBlock = builder.kdoc.build()
+   public val annotationSpecs: List<AnnotationSpec> = builder.annotationSpecs.toImmutableList()
+@@ -275,7 +281,10 @@ public class TypeSpec private constructor(
+           continue
+         }
+         if (!firstMember) codeWriter.emit("\n")
+-        propertySpec.emit(codeWriter, kind.implicitPropertyModifiers(modifiers))
++        propertySpec.emit(
++          codeWriter,
++          if (implicitPropertyModifiers) kind.implicitPropertyModifiers(modifiers) else modifiers,
++        )
+         firstMember = false
+       }
+ 
+@@ -294,7 +303,12 @@ public class TypeSpec private constructor(
+       for (funSpec in funSpecs) {
+         if (!funSpec.isConstructor) continue
+         if (!firstMember) codeWriter.emit("\n")
+-        funSpec.emit(codeWriter, name, kind.implicitFunctionModifiers(modifiers + implicitModifiers), false)
++        funSpec.emit(
++          codeWriter,
++          name,
++          if (implicitFunctionModifiers) kind.implicitFunctionModifiers(modifiers + implicitModifiers) else (modifiers + implicitModifiers),
++          false,
++        )
+         firstMember = false
+       }
+ 
+@@ -302,13 +316,23 @@ public class TypeSpec private constructor(
+       for (funSpec in funSpecs) {
+         if (funSpec.isConstructor) continue
+         if (!firstMember) codeWriter.emit("\n")
+-        funSpec.emit(codeWriter, name, kind.implicitFunctionModifiers(modifiers + implicitModifiers), true)
++        funSpec.emit(
++          codeWriter,
++          name,
++          if (implicitFunctionModifiers) kind.implicitFunctionModifiers(modifiers + implicitModifiers) else (modifiers + implicitModifiers),
++          true,
++        )
+         firstMember = false
+       }
+ 
+       for (typeSpec in typeSpecs) {
+         if (!firstMember) codeWriter.emit("\n")
+-        typeSpec.emit(codeWriter, null, kind.implicitTypeModifiers(modifiers + implicitModifiers), isNestedExternal = areNestedExternal)
++        typeSpec.emit(
++          codeWriter,
++          null,
++          if (implicitTypeModifiers) kind.implicitTypeModifiers(modifiers + implicitModifiers) else (modifiers + implicitModifiers),
++          isNestedExternal = areNestedExternal,
++        )
+         firstMember = false
+       }
+ 
+@@ -471,8 +495,9 @@ public class TypeSpec private constructor(
+     internal val isEnum get() = kind == Kind.CLASS && ENUM in modifiers
+     internal val isAnnotation get() = kind == Kind.CLASS && ANNOTATION in modifiers
+     internal val isCompanion get() = kind == Kind.OBJECT && COMPANION in modifiers
+-    internal val isInlineOrValClass get() = kind == Kind.CLASS &&
+-      (INLINE in modifiers || VALUE in modifiers)
++    internal val isInlineOrValClass
++      get() = kind == Kind.CLASS &&
++        (INLINE in modifiers || VALUE in modifiers)
+     internal val isSimpleClass get() = kind == Kind.CLASS && !isEnum && !isAnnotation
+     internal val isFunInterface get() = kind == Kind.INTERFACE && FUN in modifiers
+ 
+@@ -490,6 +515,9 @@ public class TypeSpec private constructor(
+     public val propertySpecs: MutableList<PropertySpec> = mutableListOf()
+     public val funSpecs: MutableList<FunSpec> = mutableListOf()
+     public val typeSpecs: MutableList<TypeSpec> = mutableListOf()
++    internal var implicitPropertyModifiers: Boolean = true
++    internal var implicitFunctionModifiers: Boolean = true
++    internal var implicitTypeModifiers: Boolean = true
+ 
+     public fun addKdoc(format: String, vararg args: Any): Builder = apply {
+       kdoc.add(format, *args)
+@@ -507,6 +535,18 @@ public class TypeSpec private constructor(
+       annotationSpecs += annotationSpec
+     }
+ 
++    public fun implicitPropertyModifiers(implicitPropertyModifiers: Boolean): Builder = apply {
++      this.implicitPropertyModifiers = implicitPropertyModifiers
++    }
++
++    public fun implicitFunctionModifiers(implicitFunctionModifiers: Boolean): Builder = apply {
++      this.implicitFunctionModifiers = implicitFunctionModifiers
++    }
++
++    public fun implicitTypeModifiers(implicitTypeModifiers: Boolean): Builder = apply {
++      this.implicitTypeModifiers = implicitTypeModifiers
++    }
++
+     public fun addAnnotation(annotation: ClassName): Builder =
+       addAnnotation(AnnotationSpec.builder(annotation).build())
+ 
+@@ -658,7 +698,8 @@ public class TypeSpec private constructor(
+       addSuperinterface(superinterface, CodeBlock.of(constructorParameter))
+     }
+ 
+-    @JvmOverloads public fun addEnumConstant(
++    @JvmOverloads
++    public fun addEnumConstant(
+       name: String,
+       typeSpec: TypeSpec = anonymousClassBuilder().build(),
+     ): Builder = apply {
+@@ -781,10 +822,12 @@ public class TypeSpec private constructor(
+             requireNoneOf(funSpec.modifiers, INTERNAL, PROTECTED)
+             requireNoneOrOneOf(funSpec.modifiers, ABSTRACT, PRIVATE)
+           }
++
+           isAnnotation -> require(funSpec.modifiers == kind.implicitFunctionModifiers(modifiers)) {
+             "annotation class $name.${funSpec.name} " +
+               "requires modifiers ${kind.implicitFunctionModifiers(modifiers)}"
+           }
++
+           EXPECT in modifiers -> require(funSpec.body.isEmpty()) {
+             "functions in expect classes can't have bodies"
+           }
+@@ -840,6 +883,7 @@ public class TypeSpec private constructor(
+             "$kind types can't have a companion object"
+           }
+         }
++
+         else -> {
+           throw IllegalArgumentException("Multiple companion objects are present but only one is allowed.")
+         }
+@@ -850,51 +894,68 @@ public class TypeSpec private constructor(
+   }
+ 
+   public companion object {
+-    @JvmStatic public fun classBuilder(name: String): Builder = Builder(Kind.CLASS, name)
++    @JvmStatic
++    public fun classBuilder(name: String): Builder = Builder(Kind.CLASS, name)
+ 
+-    @JvmStatic public fun classBuilder(className: ClassName): Builder =
++    @JvmStatic
++    public fun classBuilder(className: ClassName): Builder =
+       classBuilder(className.simpleName)
+ 
+-    @JvmStatic public fun expectClassBuilder(name: String): Builder =
++    @JvmStatic
++    public fun expectClassBuilder(name: String): Builder =
+       Builder(Kind.CLASS, name, EXPECT)
+ 
+-    @JvmStatic public fun expectClassBuilder(className: ClassName): Builder =
++    @JvmStatic
++    public fun expectClassBuilder(className: ClassName): Builder =
+       expectClassBuilder(className.simpleName)
+ 
+-    @JvmStatic public fun valueClassBuilder(name: String): Builder =
++    @JvmStatic
++    public fun valueClassBuilder(name: String): Builder =
+       Builder(Kind.CLASS, name, VALUE)
+ 
+-    @JvmStatic public fun objectBuilder(name: String): Builder = Builder(Kind.OBJECT, name)
++    @JvmStatic
++    public fun objectBuilder(name: String): Builder = Builder(Kind.OBJECT, name)
+ 
+-    @JvmStatic public fun objectBuilder(className: ClassName): Builder =
++    @JvmStatic
++    public fun objectBuilder(className: ClassName): Builder =
+       objectBuilder(className.simpleName)
+ 
+-    @JvmStatic @JvmOverloads
++    @JvmStatic
++    @JvmOverloads
+     public fun companionObjectBuilder(name: String? = null): Builder =
+       Builder(Kind.OBJECT, name, COMPANION)
+ 
+-    @JvmStatic public fun interfaceBuilder(name: String): Builder = Builder(Kind.INTERFACE, name)
++    @JvmStatic
++    public fun interfaceBuilder(name: String): Builder = Builder(Kind.INTERFACE, name)
+ 
+-    @JvmStatic public fun interfaceBuilder(className: ClassName): Builder =
++    @JvmStatic
++    public fun interfaceBuilder(className: ClassName): Builder =
+       interfaceBuilder(className.simpleName)
+ 
+-    @JvmStatic public fun funInterfaceBuilder(name: String): Builder =
++    @JvmStatic
++    public fun funInterfaceBuilder(name: String): Builder =
+       Builder(Kind.INTERFACE, name, FUN)
+ 
+-    @JvmStatic public fun funInterfaceBuilder(className: ClassName): Builder =
++    @JvmStatic
++    public fun funInterfaceBuilder(className: ClassName): Builder =
+       funInterfaceBuilder(className.simpleName)
+ 
+-    @JvmStatic public fun enumBuilder(name: String): Builder = Builder(Kind.CLASS, name, ENUM)
++    @JvmStatic
++    public fun enumBuilder(name: String): Builder = Builder(Kind.CLASS, name, ENUM)
+ 
+-    @JvmStatic public fun enumBuilder(className: ClassName): Builder =
++    @JvmStatic
++    public fun enumBuilder(className: ClassName): Builder =
+       enumBuilder(className.simpleName)
+ 
+-    @JvmStatic public fun anonymousClassBuilder(): Builder = Builder(Kind.CLASS, null)
++    @JvmStatic
++    public fun anonymousClassBuilder(): Builder = Builder(Kind.CLASS, null)
+ 
+-    @JvmStatic public fun annotationBuilder(name: String): Builder =
++    @JvmStatic
++    public fun annotationBuilder(name: String): Builder =
+       Builder(Kind.CLASS, name, ANNOTATION)
+ 
+-    @JvmStatic public fun annotationBuilder(className: ClassName): Builder =
++    @JvmStatic
++    public fun annotationBuilder(className: ClassName): Builder =
+       annotationBuilder(className.simpleName)
+   }
+ }
