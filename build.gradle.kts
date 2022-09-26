@@ -1,20 +1,18 @@
-
+import net.minecrell.gitpatcher.PatchExtension
 
 plugins {
-    id("net.minecrell.gitpatcher") version "0.9.0"
+    id("net.minecraftforge.gitpatcher") version "0.10.+"
 }
 
 group = "dev.themeinerlp"
 version = "1.0.0-SNAPSHOT"
 
-repositories {
-    mavenCentral()
+configure<PatchExtension> {
+    submodule = "kotlinpoet"
+    patches = file("patches")
+    target = file("patched-kotlinpoet")
 }
 
-patches {
-    submodule = "kotlinpoet"
-
-    target = file("PatchedPoet")
-
-    patches = file("patches")
+tasks.register("rebuildPatches") {
+    dependsOn(tasks.makePatches)
 }
