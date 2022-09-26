@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Phillipp Glanz <p.glanz@madfix.me>
+Date: Mon, 26 Sep 2022 15:07:06 +0200
+Subject: [PATCH] Add option to disable inline function for annotation spec
+
+
+diff --git a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/AnnotationSpec.kt b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/AnnotationSpec.kt
+index d44264b6457c50fe3595a8320e37066e11669c89..d23e81c9346778cae3e41cf4f9851fadc87adb69 100644
+--- a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/AnnotationSpec.kt
++++ b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/AnnotationSpec.kt
+@@ -39,8 +39,9 @@ public class AnnotationSpec private constructor(
+   public val typeName: TypeName = builder.typeName
+   public val members: List<CodeBlock> = builder.members.toImmutableList()
+   public val useSiteTarget: UseSiteTarget? = builder.useSiteTarget
++  public val inline: Boolean? = builder.inline
+ 
+-  internal fun emit(codeWriter: CodeWriter, inline: Boolean, asParameter: Boolean = false) {
++  internal fun emit(codeWriter: CodeWriter, asParameter: Boolean = false) {
+     if (!asParameter) {
+       codeWriter.emit("@")
+     }
+@@ -54,9 +55,9 @@ public class AnnotationSpec private constructor(
+       return
+     }
+ 
+-    val whitespace = if (inline) "" else "\n"
+-    val memberSeparator = if (inline) ", " else ",\n"
+-    val memberSuffix = if (!inline && members.size > 1) "," else ""
++    val whitespace = if (inline == true) "" else "\n"
++    val memberSeparator = if (inline == true) ", " else ",\n"
++    val memberSuffix = if (inline == false && members.size > 1) "," else ""
+ 
+     // Inline:
+     //   @Column(name = "updated_at", nullable = false)
+@@ -71,7 +72,7 @@ public class AnnotationSpec private constructor(
+     if (members.size > 1) codeWriter.emit(whitespace).indent(1)
+     codeWriter.emitCode(
+       codeBlock = members
+-        .map { if (inline) it.replaceAll("[⇥|⇤]", "") else it }
++        .map { if (inline == true) it.replaceAll("[⇥|⇤]", "") else it }
+         .joinToCode(separator = memberSeparator, suffix = memberSuffix),
+       isConstantContext = true,
+     )
+@@ -97,7 +98,7 @@ public class AnnotationSpec private constructor(
+   override fun hashCode(): Int = toString().hashCode()
+ 
+   override fun toString(): String = buildCodeString {
+-    emit(this, inline = true, asParameter = false)
++    emit(this, asParameter = false)
+   }
+ 
+   public enum class UseSiteTarget(internal val keyword: String) {
+@@ -116,6 +117,7 @@ public class AnnotationSpec private constructor(
+     internal val typeName: TypeName,
+   ) : Taggable.Builder<Builder> {
+     internal var useSiteTarget: UseSiteTarget? = null
++    internal var inline: Boolean? = true
+ 
+     public val members: MutableList<CodeBlock> = mutableListOf()
+     override val tags: MutableMap<KClass<*>, Any> = mutableMapOf()
+@@ -131,6 +133,10 @@ public class AnnotationSpec private constructor(
+       this.useSiteTarget = useSiteTarget
+     }
+ 
++    public fun inline(inline: Boolean?): Builder = apply {
++      this.inline = inline
++    }
++
+     public fun build(): AnnotationSpec = AnnotationSpec(this)
+ 
+     public companion object {
