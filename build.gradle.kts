@@ -12,7 +12,7 @@ repositories {
 }
 
 patches {
-    submodule = "poet"
+    submodule = "kotlinpoet"
 
     target = file("PatchedPoet")
 
