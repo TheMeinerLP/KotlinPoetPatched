@@ -12,9 +12,9 @@ repositories {
 }
 
 patches {
-    submodule = "upstream"
+    submodule = "poet"
 
-    target = file("target")
+    target = file("PatchedPoet")
 
     patches = file("patches")
 }
