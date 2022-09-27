@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Phillipp Glanz <p.glanz@madfix.me>
+Date: Tue, 27 Sep 2022 09:57:14 +0200
+Subject: [PATCH] Disable modifier for classes
+
+
+diff --git a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/TypeSpec.kt b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/TypeSpec.kt
+index 943ca4d7f1b630f08889b42348eb6818a64dc912..2c520c2c3cdb6cc541466b44a5ab52d80a9800be 100644
+--- a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/TypeSpec.kt
++++ b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/TypeSpec.kt
+@@ -167,7 +167,15 @@ public class TypeSpec private constructor(
+         codeWriter.emitAnnotations(annotationSpecs, false)
+         codeWriter.emitModifiers(
+           modifiers,
+-          if (isNestedExternal) setOf(PUBLIC, EXTERNAL) else setOf(PUBLIC),
++          if (isNestedExternal) {
++            setOf(PUBLIC, EXTERNAL)
++          } else {
++            if (implicitTypeModifiers) {
++              setOf(PUBLIC)
++            } else {
++              emptySet()
++            }
++          },
+         )
+         codeWriter.emit(kind.declarationKeyword)
+         if (name != null) {
