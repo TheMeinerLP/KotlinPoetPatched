@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Phillipp Glanz <p.glanz@madfix.me>
+Date: Tue, 27 Sep 2022 11:40:50 +0200
+Subject: [PATCH] Add continueControlFlow with codeblock and without
+
+
+diff --git a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeBlock.kt b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeBlock.kt
+index 6316e3f227034b878914583704bbb9a537be1e38..5f71bb3e47a51c370a8966da489d4276df0dfa5c 100644
+--- a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeBlock.kt
++++ b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeBlock.kt
+@@ -419,6 +419,17 @@ public class CodeBlock private constructor(
+       indent()
+     }
+ 
++    public fun continueControlFlow(controlFlow: String, vararg args: Any?): Builder = apply {
++      unindent()
++      add("}$controlFlow·{\n", *args)
++      indent()
++    }
++
++    public fun continueControlFlow(controlFlow: CodeBlock, vararg args: Any?): Builder = apply {
++      unindent()
++      add("}${controlFlow}·{\n", *args)
++      indent()
++    }
+     public fun endControlFlow(): Builder = apply {
+       unindent()
+       add("}\n")
