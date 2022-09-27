@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Phillipp Glanz <p.glanz@madfix.me>
+Date: Tue, 27 Sep 2022 14:28:10 +0200
+Subject: [PATCH] Fix inline of annotation for parameter spec
+
+
+diff --git a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeWriter.kt b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeWriter.kt
+index c3c3339fa522d75e4905a86917c54be16accfe2a..09693cefd961482eca8e32de90276305615c2d5e 100644
+--- a/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeWriter.kt
++++ b/kotlinpoet/src/main/java/com/squareup/kotlinpoet/CodeWriter.kt
+@@ -144,7 +144,7 @@ internal class CodeWriter constructor(
+ 
+   fun emitAnnotations(annotations: List<AnnotationSpec>, inline: Boolean) {
+     for (annotationSpec in annotations) {
+-      annotationSpec.emit(this, inline)
++      annotationSpec.emit(this)
+       emit(if (inline) " " else "\n")
+     }
+   }
